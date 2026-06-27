@@ -703,6 +703,7 @@ function openModal(tradeId) {
   }
 
   // Notes/tags
+  document.getElementById('tradeSource').value = t.source || 'manual';
   document.getElementById('tradeNote').value = n.note || '';
   document.getElementById('tradeTags').value = (n.tags||[]).join(', ');
 
@@ -719,11 +720,18 @@ function closeModal() {
 function saveNoteModal() {
   if (!currentTradeId) return;
   const existing = notes[currentTradeId] || {};
+  const newSource = document.getElementById('tradeSource').value;
+
+  // Update the source on the trade object itself
+  const trade = trades.find(t => t.id === currentTradeId);
+  if (trade) trade.source = newSource;
+
   notes[currentTradeId] = {
     ...existing,
     note : document.getElementById('tradeNote').value.trim(),
     tags : document.getElementById('tradeTags').value.split(',').map(s=>s.trim()).filter(Boolean),
   };
+  saveTrades();
   saveNotes();
   refreshTrades();
   closeModal();

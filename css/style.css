@@ -574,6 +574,21 @@ body {
 .modal-footer textarea:focus,
 .modal-footer input[type="text"]:focus { border-color: var(--accent); }
 
+.modal-select {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 9px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+.modal-select:focus { border-color: var(--accent); }
+
 .btn-save {
   align-self: flex-start;
   background: var(--accent);
