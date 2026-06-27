@@ -222,7 +222,8 @@ function filteredTrades(period) {
   if (period && period !== 'all') {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - parseInt(period));
-    list = list.filter(t => t.date && t.date >= cutoff);
+    // Only filter by date if trade HAS a date — don't exclude dateless trades
+    list = list.filter(t => !t.date || t.date >= cutoff);
   }
   if (filterConfig.search) {
     const q = filterConfig.search.toLowerCase();
@@ -441,13 +442,13 @@ function drawMiniSparkline(canvas, trade) {
    ═══════════════════════════════════════════════════════════════ */
 function refreshDashboard() {
   const period = document.getElementById('dash-period').value;
-  const list   = filteredTrades(period).sort((a,b) => (a.date||0) - (b.date||0));
+  const list   = filteredTrades(period).sort((a,b) => (a.date||new Date(0)) - (b.date||new Date(0)));
   const stats  = computeStats(list);
   const empty  = document.getElementById('dash-empty');
   const grid   = document.getElementById('stats-grid');
   const cg     = document.querySelector('.charts-grid');
 
-  if (!list.length) {
+  if (!trades.length) {
     empty.classList.add('visible');
     grid.style.display = 'none';
     if (cg) cg.style.display = 'none';
@@ -457,20 +458,20 @@ function refreshDashboard() {
   grid.style.display = '';
   if (cg) cg.style.display = '';
 
-  const dates = list.map(t => t.date).filter(Boolean);
-  if (dates.length) {
-    document.getElementById('dash-date-range').textContent =
-      fmtDate(dates[0]) + ' – ' + fmtDate(dates[dates.length-1]);
-  }
+  // Date range label — use trades that have dates
+  const dates = list.map(t => t.date).filter(Boolean).sort((a,b) => a-b);
+  document.getElementById('dash-date-range').textContent = dates.length
+    ? fmtDate(dates[0]) + ' – ' + fmtDate(dates[dates.length-1])
+    : list.length + ' trades loaded';
 
   const pnlEl = document.getElementById('stat-pnl');
-  pnlEl.textContent = fmtPnl(stats.totalPnl);
+  pnlEl.textContent = stats.total ? fmtPnl(stats.totalPnl) : '—';
   pnlEl.className   = 'stat-value ' + (stats.totalPnl >= 0 ? 'pos' : 'neg');
-  document.getElementById('stat-winrate').textContent = (stats.winRate * 100).toFixed(1) + '%';
-  document.getElementById('stat-total').textContent   = stats.total;
-  document.getElementById('stat-avgwin').textContent  = '$' + stats.avgWin.toFixed(2);
-  document.getElementById('stat-avgloss').textContent = '$' + stats.avgLoss.toFixed(2);
-  document.getElementById('stat-pf').textContent      = isFinite(stats.pf) ? stats.pf.toFixed(2) : '∞';
+  document.getElementById('stat-winrate').textContent = stats.total ? (stats.winRate * 100).toFixed(1) + '%' : '—';
+  document.getElementById('stat-total').textContent   = list.length;
+  document.getElementById('stat-avgwin').textContent  = stats.wins  ? '$' + stats.avgWin.toFixed(2)  : '—';
+  document.getElementById('stat-avgloss').textContent = stats.losses ? '$' + stats.avgLoss.toFixed(2) : '—';
+  document.getElementById('stat-pf').textContent      = stats.total && isFinite(stats.pf) ? stats.pf.toFixed(2) : stats.pf === Infinity ? '∞' : '—';
 
   buildEquityChart(list);
   buildWinLossChart(stats);
@@ -585,33 +586,54 @@ function refreshTrades() {
 function refreshPerformance() {
   const list = filteredTrades();
 
-  const bySymbol = {};
-  list.forEach(t => { if (t.pnl!=null) bySymbol[t.symbol] = (bySymbol[t.symbol]||0)+t.pnl; });
-  const symE = Object.entries(bySymbol).sort(([,a],[,b]) => b-a);
-  rebuildChart('chartSymbol', {
-    type:'bar',
-    data:{ labels:symE.map(([k])=>k),
-      datasets:[{ label:'P&L', data:symE.map(([,v])=>parseFloat(v.toFixed(2))),
-        backgroundColor:symE.map(([,v])=>v>=0?'rgba(62,207,142,0.7)':'rgba(240,82,82,0.7)'), borderRadius:3 }]},
-    options:chartOpts({})
-  });
+  if (!list.length) {
+    ['chartSymbol','chartDow','chartHisto'].forEach(id => {
+      if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+      const c = document.getElementById(id);
+      if (c) { const ctx = c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height); }
+    });
+    return;
+  }
 
+  // P&L by Symbol
+  const bySymbol = {};
+  list.forEach(t => { if (t.pnl != null) bySymbol[t.symbol] = (bySymbol[t.symbol]||0) + t.pnl; });
+  const symE = Object.entries(bySymbol).sort(([,a],[,b]) => b-a);
+
+  if (symE.length) {
+    rebuildChart('chartSymbol', {
+      type:'bar',
+      data:{ labels:symE.map(([k])=>k),
+        datasets:[{ label:'P&L', data:symE.map(([,v])=>parseFloat(v.toFixed(2))),
+          backgroundColor:symE.map(([,v])=>v>=0?'rgba(62,207,142,0.7)':'rgba(240,82,82,0.7)'), borderRadius:3 }]},
+      options:chartOpts({})
+    });
+  }
+
+  // Trades by day of week
   const dow = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const counts = Array(7).fill(0);
   list.forEach(t => { if (t.date) counts[t.date.getDay()]++; });
   rebuildChart('chartDow', {
     type:'bar',
     data:{ labels:dow, datasets:[{ label:'Trades', data:counts,
-      backgroundColor:'rgba(124,110,247,0.6)', borderRadius:3 }]},
+      backgroundColor:counts.map((_,i)=> i===0||i===6 ? 'rgba(124,110,247,0.3)' : 'rgba(124,110,247,0.6)'),
+      borderRadius:3 }]},
     options:chartOpts({})
   });
 
+  // P&L Histogram
   const pnls = list.map(t=>t.pnl).filter(v=>v!=null);
   if (pnls.length) {
-    const min = Math.floor(Math.min(...pnls)/50)*50;
-    const max = Math.ceil(Math.max(...pnls)/50)*50;
+    const minVal = Math.min(...pnls);
+    const maxVal = Math.max(...pnls);
+    const binSize = Math.max(50, Math.ceil((maxVal - minVal) / 10 / 50) * 50);
+    const minBin  = Math.floor(minVal / binSize) * binSize;
+    const maxBin  = Math.ceil(maxVal  / binSize) * binSize;
     const bins = [];
-    for (let b=min; b<max; b+=50) bins.push({ label:`$${b}`, count:pnls.filter(p=>p>=b&&p<b+50).length, b });
+    for (let b = minBin; b < maxBin; b += binSize) {
+      bins.push({ label: (b >= 0 ? '+' : '') + '$' + b, count: pnls.filter(p => p >= b && p < b + binSize).length, b });
+    }
     rebuildChart('chartHisto', {
       type:'bar',
       data:{ labels:bins.map(b=>b.label),
