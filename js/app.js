@@ -36,7 +36,6 @@ function normalizeTrade(row, idx) {
   const tradeId = pick('id','tradeid','orderid','executionid') || String(idx);
 
   // ── Source platform ────────────────────────────────
-  // Detected from: explicit 'source' column, ID prefix, or symbol patterns
   const source_raw = pick('source','platform','broker','account').toLowerCase();
   let source = 'manual';
   if (source_raw.includes('topstep') || source_raw.includes('tsx')) {
@@ -46,29 +45,30 @@ function normalizeTrade(row, idx) {
   } else if (tradeId.startsWith('LUC-')) {
     source = 'lucid';
   } else if (/^\d{10}$/.test(tradeId)) {
-    // TopstepX trade IDs are 10-digit numbers
     source = 'topstep';
   }
 
   // ── Size ───────────────────────────────────────────
-  const size = parseFloat(pick('size','qty','quantity','contracts','volume')) || 1;
+  const size_raw = pick('size','qty','quantity','contracts','volume');
+  const size = size_raw ? (parseFloat(size_raw) || 1) : 1;
 
   // ── Direction / Side ──────────────────────────────
   const dir_raw = pick('direction','side','type','action','buysell','positionside');
   const side = /short|sell|s\b|s$/i.test(dir_raw) ? 'short' : 'long';
 
-  // ── Entry Time (Lucid: "June 26 2026 @ 7:41:09 am") ──
-  const entry_time_raw = pick('entrytime','entrydate','opentime','datetime','date','closeddate','buydatetime');
-  const exit_time_raw  = pick('exittime','exitdate','closetime','closeddate','selldatetime');
+  // ── Entry / Exit Time ─────────────────────────────
+  // Key variants: "Entry Time", "entrytime", "EntryTime", "entry time"
+  const entry_time_raw = pick('entrytime','entrydate','opentime','buydatetime','datetime','date');
+  const exit_time_raw  = pick('exittime','exitdate','closetime','selldatetime');
 
   const parseDateTime = (raw) => {
     if (!raw) return null;
-    // Lucid format: "June 26 2026 @ 7:41:09 am"
-    const lucid = raw.replace('@', '').replace(/\s+/g, ' ').trim();
-    let d = new Date(lucid);
+    // Lucid/TopstepX format: "June 26 2026 @ 7:41:09 am"
+    const cleaned = raw.replace('@', '').replace(/\s+/g, ' ').trim();
+    let d = new Date(cleaned);
     if (!isNaN(d.getTime())) return d;
-    // MM/DD/YYYY HH:MM:SS
-    const m = raw.match(/(\d+)[\/\-](\d+)[\/\-](\d+)(?:\s+(\d+):(\d+)(?::(\d+))?)?/);
+    // MM/DD/YYYY or MM-DD-YYYY with optional time
+    const m = raw.match(/(\d+)[\/\-](\d+)[\/\-](\d+)(?:[T\s]+(\d+):(\d+)(?::(\d+))?)?/);
     if (m) {
       d = new Date(`${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}T${(m[4]||'0').padStart(2,'0')}:${(m[5]||'0').padStart(2,'0')}:${(m[6]||'0').padStart(2,'0')}`);
       if (!isNaN(d.getTime())) return d;
@@ -79,11 +79,10 @@ function normalizeTrade(row, idx) {
   const entryTime = parseDateTime(entry_time_raw);
   const exitTime  = parseDateTime(exit_time_raw);
 
-  // Duration in seconds
+  // ── Duration ──────────────────────────────────────
   let durationSec = null;
   const dur_raw = pick('duration');
   if (dur_raw) {
-    // "00:01:26" format
     const parts = dur_raw.split(':').map(Number);
     if (parts.length === 3) durationSec = parts[0]*3600 + parts[1]*60 + parts[2];
     else if (parts.length === 2) durationSec = parts[0]*60 + parts[1];
@@ -807,6 +806,18 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('dashImportBtn')?.addEventListener('click', () => csvInput.click());
   csvInput.addEventListener('change', e => {
     if (e.target.files[0]) { handleCSV(e.target.files[0]); e.target.value = ''; }
+  });
+
+  // Clear all trades
+  document.getElementById('clearBtn').addEventListener('click', () => {
+    if (confirm('Clear all trades and notes? This cannot be undone.')) {
+      trades = [];
+      notes  = {};
+      localStorage.removeItem('tj_trades');
+      localStorage.removeItem('tj_notes');
+      refreshAll();
+      showToast('All trades cleared.');
+    }
   });
 
   // Filters

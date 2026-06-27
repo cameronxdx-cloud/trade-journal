@@ -113,6 +113,21 @@ body {
   margin-top: 7px;
 }
 
+.btn-clear {
+  width: 100%;
+  margin-top: 8px;
+  padding: 7px 14px;
+  background: transparent;
+  border: 1px solid rgba(240,82,82,0.25);
+  border-radius: var(--radius);
+  color: var(--red);
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.15s, background 0.15s;
+}
+.btn-clear:hover { opacity: 1; background: var(--red-bg); }
+
 /* ── Main ─────────────────────────────────────────────── */
 .main {
   flex: 1;
