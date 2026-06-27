@@ -132,6 +132,12 @@
             <option value="win">Win</option>
             <option value="loss">Loss</option>
           </select>
+          <select id="filter-source" class="filter-select">
+            <option value="">All platforms</option>
+            <option value="topstep">TopstepX</option>
+            <option value="lucid">Lucid</option>
+            <option value="manual">Manual</option>
+          </select>
         </div>
       </header>
 
@@ -141,6 +147,7 @@
             <tr>
               <th data-sort="date" class="sortable">Date <span class="sort-icon">↕</span></th>
               <th data-sort="symbol" class="sortable">Symbol <span class="sort-icon">↕</span></th>
+              <th>Source</th>
               <th>Side</th>
               <th>Size</th>
               <th data-sort="entry" class="sortable">Entry <span class="sort-icon">↕</span></th>

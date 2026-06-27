@@ -1,0 +1,7 @@
+Journal,ID,Contract,Size,Entry Time,Exit Time,Duration,Entry Price,Exit Price,P&L,Commissions,Fees,Direction,Source
+,LUC-001,MNQU6,5,June 26 2026 @ 9:00:00 am,June 26 2026 @ 9:00:16 am,00:00:16,,,$242.50,$-5.00,,Long,Lucid
+,LUC-002,NQU6,2,June 26 2026 @ 9:00:00 am,June 26 2026 @ 9:00:31 am,00:00:31,,,$833.00,$-7.00,,Long,Lucid
+,LUC-003,CLQ6,1,June 25 2026 @ 9:00:00 am,June 25 2026 @ 9:00:01 am,00:00:01,,,$-4.00,$-4.00,,Short,Lucid
+,LUC-004,GCQ6,3,June 25 2026 @ 9:00:00 am,June 25 2026 @ 9:01:52 am,00:01:52,,,$46.20,$-13.80,,Long,Lucid
+,LUC-005,MNQU6,19,June 25 2026 @ 9:00:00 am,June 25 2026 @ 9:02:34 am,00:02:34,,,$425.00,$-19.00,,Long,Lucid
+,LUC-006,NQU6,20,June 25 2026 @ 9:00:00 am,June 25 2026 @ 9:01:07 am,00:01:07,,,$995.00,$-70.00,,Long,Lucid

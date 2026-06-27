@@ -5,7 +5,7 @@ let trades      = [];
 let notes       = {};   // { tradeId: { note, tags, chartImage } }
 let charts      = {};
 let sortConfig  = { key: 'date', dir: -1 };
-let filterConfig = { search: '', side: '', result: '' };
+let filterConfig = { search: '', side: '', result: '', source: '' };
 let currentTradeId = null;
 
 /* ═══════════════════════════════════════════════════════════════
@@ -34,6 +34,21 @@ function normalizeTrade(row, idx) {
 
   // ── Trade ID ───────────────────────────────────────
   const tradeId = pick('id','tradeid','orderid','executionid') || String(idx);
+
+  // ── Source platform ────────────────────────────────
+  // Detected from: explicit 'source' column, ID prefix, or symbol patterns
+  const source_raw = pick('source','platform','broker','account').toLowerCase();
+  let source = 'manual';
+  if (source_raw.includes('topstep') || source_raw.includes('tsx')) {
+    source = 'topstep';
+  } else if (source_raw.includes('lucid')) {
+    source = 'lucid';
+  } else if (tradeId.startsWith('LUC-')) {
+    source = 'lucid';
+  } else if (/^\d{10}$/.test(tradeId)) {
+    // TopstepX trade IDs are 10-digit numbers
+    source = 'topstep';
+  }
 
   // ── Size ───────────────────────────────────────────
   const size = parseFloat(pick('size','qty','quantity','contracts','volume')) || 1;
@@ -103,6 +118,7 @@ function normalizeTrade(row, idx) {
   return {
     id          : `t-${idx}-${Date.now()}`,
     tradeId,
+    source,
     date        : entryTime || exitTime,
     entryTime,
     exitTime,
@@ -215,6 +231,7 @@ function filteredTrades(period) {
   }
   if (filterConfig.side)   list = list.filter(t => t.side === filterConfig.side);
   if (filterConfig.result) list = list.filter(t => t.result === filterConfig.result);
+  if (filterConfig.source) list = list.filter(t => t.source === filterConfig.source);
   return list;
 }
 
@@ -245,6 +262,16 @@ function fmtDuration(sec) {
   if (sec < 60)   return sec + 's';
   if (sec < 3600) return Math.floor(sec/60) + 'm ' + (sec%60) + 's';
   return Math.floor(sec/3600) + 'h ' + Math.floor((sec%3600)/60) + 'm';
+}
+
+function sourceBadge(source) {
+  const map = {
+    topstep : { label: 'TopstepX', color: 'rgba(0,200,120,0.15)',  text: '#3ecf8e' },
+    lucid   : { label: 'Lucid',    color: 'rgba(80,140,255,0.15)', text: '#6ea8ff' },
+    manual  : { label: 'Manual',   color: 'rgba(255,255,255,0.07)', text: '#8a8a96' },
+  };
+  const s = map[source] || map.manual;
+  return `<span class="badge" style="background:${s.color};color:${s.text}">${s.label}</span>`;
 }
 
 function esc(s) {
@@ -532,6 +559,7 @@ function refreshTrades() {
     tr.innerHTML = `
       <td>${fmtDate(t.date)}</td>
       <td><strong>${esc(t.symbol)}</strong></td>
+      <td>${sourceBadge(t.source)}</td>
       <td><span class="badge badge-${t.side}">${t.side}</span></td>
       <td style="color:var(--text2)">${t.size}</td>
       <td>${fmtPrice(t.entry)}</td>
@@ -637,6 +665,7 @@ function openModal(tradeId) {
       <div class="detail-item"><span class="detail-label">Entry price</span><span class="detail-val">${fmtPrice(t.entry)}</span></div>
       <div class="detail-item"><span class="detail-label">Exit price</span><span class="detail-val">${fmtPrice(t.exit)}</span></div>
       <div class="detail-item"><span class="detail-label">P&L</span><span class="detail-val ${t.pnl>=0?'pnl-pos':'pnl-neg'}">${t.pnl!=null?fmtPnl(t.pnl):'—'}</span></div>
+      <div class="detail-item"><span class="detail-label">Platform</span><span class="detail-val">${sourceBadge(t.source)}</span></div>
       ${t.commissions!=null?`<div class="detail-item"><span class="detail-label">Commissions</span><span class="detail-val" style="color:var(--text2)">$${Math.abs(t.commissions).toFixed(2)}</span></div>`:''}
       ${t.fees!=null?`<div class="detail-item"><span class="detail-label">Fees</span><span class="detail-val" style="color:var(--text2)">$${Math.abs(t.fees).toFixed(2)}</span></div>`:''}
       ${t.tradeId?`<div class="detail-item"><span class="detail-label">Trade ID</span><span class="detail-val" style="color:var(--text3);font-size:12px">${esc(t.tradeId)}</span></div>`:''}
@@ -777,6 +806,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('search').addEventListener('input', e => { filterConfig.search = e.target.value; refreshTrades(); });
   document.getElementById('filter-side').addEventListener('change', e => { filterConfig.side = e.target.value; refreshTrades(); });
   document.getElementById('filter-result').addEventListener('change', e => { filterConfig.result = e.target.value; refreshTrades(); });
+  document.getElementById('filter-source').addEventListener('change', e => { filterConfig.source = e.target.value; refreshTrades(); });
 
   // Sort headers
   document.querySelectorAll('.sortable').forEach(th =>
