@@ -173,22 +173,67 @@
       <header class="page-header">
         <div>
           <h1>Performance</h1>
-          <p class="subtitle">Symbol & time breakdown</p>
+          <p class="subtitle" id="perf-subtitle">All trades</p>
+        </div>
+        <div class="header-actions">
+          <select id="perf-period" class="filter-select">
+            <option value="all">All time</option>
+            <option value="30">Last 30 days</option>
+            <option value="7">Last 7 days</option>
+          </select>
         </div>
       </header>
+
+      <!-- Extra stat cards -->
+      <div class="stats-grid" id="perf-stats" style="margin-bottom:20px">
+        <div class="stat-card">
+          <span class="stat-label">Largest Win</span>
+          <span class="stat-value pos" id="perf-best">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Largest Loss</span>
+          <span class="stat-value neg" id="perf-worst">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Avg Duration</span>
+          <span class="stat-value" id="perf-avgdur">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Best Day</span>
+          <span class="stat-value pos" id="perf-bestday">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Worst Day</span>
+          <span class="stat-value neg" id="perf-worstday">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Total Commissions</span>
+          <span class="stat-value" id="perf-comm">—</span>
+        </div>
+      </div>
+
       <div class="perf-grid">
         <div class="chart-card">
           <h3>P&L by Symbol</h3>
-          <div class="chart-wrap" style="height:260px"><canvas id="chartSymbol" role="img" aria-label="P&L by symbol">No data</canvas></div>
+          <div class="chart-wrap" style="height:240px"><canvas id="chartSymbol" role="img" aria-label="P&L by symbol"></canvas></div>
         </div>
         <div class="chart-card">
           <h3>Trades by Day of Week</h3>
-          <div class="chart-wrap" style="height:260px"><canvas id="chartDow" role="img" aria-label="Trades by day of week">No data</canvas></div>
+          <div class="chart-wrap" style="height:240px"><canvas id="chartDow" role="img" aria-label="Trades by day of week"></canvas></div>
         </div>
         <div class="chart-card chart-full">
           <h3>P&L Histogram</h3>
-          <div class="chart-wrap" style="height:200px"><canvas id="chartHisto" role="img" aria-label="Trade P&L histogram">No data</canvas></div>
+          <div class="chart-wrap" style="height:180px"><canvas id="chartHisto" role="img" aria-label="Trade P&L histogram"></canvas></div>
         </div>
+        <div class="chart-card chart-full">
+          <h3>P&L by Hour of Day</h3>
+          <div class="chart-wrap" style="height:180px"><canvas id="chartHour" role="img" aria-label="P&L by hour of day"></canvas></div>
+        </div>
+      </div>
+
+      <div class="empty-state" id="perf-empty">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.3"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <p>Import trades to see performance</p>
       </div>
     </section>
 

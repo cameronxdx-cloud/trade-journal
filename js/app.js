@@ -584,75 +584,159 @@ function refreshTrades() {
    PERFORMANCE CHARTS
    ═══════════════════════════════════════════════════════════════ */
 function refreshPerformance() {
-  const list = filteredTrades();
+  const period  = document.getElementById('perf-period')?.value || 'all';
+  const list    = filteredTrades(period);
+  const perfEmpty = document.getElementById('perf-empty');
+  const perfStats = document.getElementById('perf-stats');
+  const perfGrid  = document.querySelector('.perf-grid');
 
   if (!list.length) {
-    ['chartSymbol','chartDow','chartHisto'].forEach(id => {
+    if (perfEmpty) perfEmpty.classList.add('visible');
+    if (perfStats) perfStats.style.display = 'none';
+    if (perfGrid)  perfGrid.style.display  = 'none';
+    ['chartSymbol','chartDow','chartHisto','chartHour'].forEach(id => {
       if (charts[id]) { charts[id].destroy(); delete charts[id]; }
-      const c = document.getElementById(id);
-      if (c) { const ctx = c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height); }
     });
     return;
   }
 
-  // P&L by Symbol
-  const bySymbol = {};
-  list.forEach(t => { if (t.pnl != null) bySymbol[t.symbol] = (bySymbol[t.symbol]||0) + t.pnl; });
-  const symE = Object.entries(bySymbol).sort(([,a],[,b]) => b-a);
+  if (perfEmpty) perfEmpty.classList.remove('visible');
+  if (perfStats) perfStats.style.display = '';
+  if (perfGrid)  perfGrid.style.display  = '';
 
+  const withPnl = list.filter(t => t.pnl != null);
+  const pnls    = withPnl.map(t => t.pnl);
+
+  // ── Extra stat cards ──────────────────────────────
+  const best  = pnls.length ? Math.max(...pnls) : null;
+  const worst = pnls.length ? Math.min(...pnls) : null;
+
+  const durations = list.map(t => t.durationSec).filter(v => v != null);
+  const avgDur = durations.length ? durations.reduce((a,b) => a+b, 0) / durations.length : null;
+
+  // Best/worst day
+  const byDay = {};
+  withPnl.forEach(t => {
+    if (!t.date) return;
+    const k = t.date.toISOString().slice(0,10);
+    byDay[k] = (byDay[k]||0) + t.pnl;
+  });
+  const dayVals = Object.values(byDay);
+  const bestDay  = dayVals.length ? Math.max(...dayVals) : null;
+  const worstDay = dayVals.length ? Math.min(...dayVals) : null;
+
+  const totalComm = list.reduce((s,t) => s + Math.abs(t.commissions||0) + Math.abs(t.fees||0), 0);
+
+  document.getElementById('perf-best').textContent     = best  != null ? fmtPnl(best)  : '—';
+  document.getElementById('perf-worst').textContent    = worst != null ? fmtPnl(worst) : '—';
+  document.getElementById('perf-avgdur').textContent   = avgDur != null ? fmtDuration(Math.round(avgDur)) : '—';
+  document.getElementById('perf-bestday').textContent  = bestDay  != null ? fmtPnl(bestDay)  : '—';
+  document.getElementById('perf-worstday').textContent = worstDay != null ? fmtPnl(worstDay) : '—';
+  document.getElementById('perf-comm').textContent     = '$' + totalComm.toFixed(2);
+  document.getElementById('perf-subtitle').textContent = list.length + ' trades';
+
+  // ── P&L by Symbol ─────────────────────────────────
+  const bySymbol = {};
+  withPnl.forEach(t => { bySymbol[t.symbol] = (bySymbol[t.symbol]||0) + t.pnl; });
+  const symE = Object.entries(bySymbol).sort(([,a],[,b]) => b-a);
   if (symE.length) {
     rebuildChart('chartSymbol', {
-      type:'bar',
-      data:{ labels:symE.map(([k])=>k),
-        datasets:[{ label:'P&L', data:symE.map(([,v])=>parseFloat(v.toFixed(2))),
-          backgroundColor:symE.map(([,v])=>v>=0?'rgba(62,207,142,0.7)':'rgba(240,82,82,0.7)'), borderRadius:3 }]},
-      options:chartOpts({})
+      type: 'bar',
+      data: { labels: symE.map(([k])=>k),
+        datasets:[{ label:'P&L', data: symE.map(([,v])=>parseFloat(v.toFixed(2))),
+          backgroundColor: symE.map(([,v])=>v>=0?'rgba(62,207,142,0.7)':'rgba(240,82,82,0.7)'),
+          borderRadius: 3 }]},
+      options: chartOpts()
     });
   }
 
-  // Trades by day of week
+  // ── Trades by Day of Week ──────────────────────────
   const dow = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const counts = Array(7).fill(0);
-  list.forEach(t => { if (t.date) counts[t.date.getDay()]++; });
+  const dowCounts = Array(7).fill(0);
+  const dowPnl    = Array(7).fill(0);
+  list.forEach(t => {
+    if (!t.date) return;
+    const d = t.date.getDay();
+    dowCounts[d]++;
+    if (t.pnl != null) dowPnl[d] += t.pnl;
+  });
   rebuildChart('chartDow', {
-    type:'bar',
-    data:{ labels:dow, datasets:[{ label:'Trades', data:counts,
-      backgroundColor:counts.map((_,i)=> i===0||i===6 ? 'rgba(124,110,247,0.3)' : 'rgba(124,110,247,0.6)'),
-      borderRadius:3 }]},
-    options:chartOpts({})
+    type: 'bar',
+    data: { labels: dow,
+      datasets:[
+        { label:'Trades', data: dowCounts, backgroundColor:'rgba(124,110,247,0.55)', borderRadius:3, yAxisID:'y' },
+        { label:'P&L',    data: dowPnl.map(v=>parseFloat(v.toFixed(2))), backgroundColor: dowPnl.map(v=>v>=0?'rgba(62,207,142,0.35)':'rgba(240,82,82,0.35)'), borderRadius:3, yAxisID:'y1' }
+      ]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: true, labels: { color:'#8a8a96', font:{size:11}, boxWidth:10 } } },
+      scales: {
+        x:  { grid:{display:false}, ticks:{color:'#55555f',font:{size:11}}, border:{display:false} },
+        y:  { grid:{color:'rgba(255,255,255,0.05)'}, ticks:{color:'#55555f',font:{size:11}}, border:{display:false}, position:'left', title:{display:true,text:'Trades',color:'#55555f',font:{size:10}} },
+        y1: { grid:{display:false}, ticks:{color:'#55555f',font:{size:11}}, border:{display:false}, position:'right', title:{display:true,text:'P&L',color:'#55555f',font:{size:10}} }
+      }
+    }
   });
 
-  // P&L Histogram
-  const pnls = list.map(t=>t.pnl).filter(v=>v!=null);
+  // ── P&L Histogram ─────────────────────────────────
   if (pnls.length) {
-    const minVal = Math.min(...pnls);
-    const maxVal = Math.max(...pnls);
-    const binSize = Math.max(50, Math.ceil((maxVal - minVal) / 10 / 50) * 50);
+    const minVal  = Math.min(...pnls);
+    const maxVal  = Math.max(...pnls);
+    const range   = maxVal - minVal || 100;
+    const binSize = Math.max(25, Math.ceil(range / 12 / 25) * 25);
     const minBin  = Math.floor(minVal / binSize) * binSize;
     const maxBin  = Math.ceil(maxVal  / binSize) * binSize;
     const bins = [];
-    for (let b = minBin; b < maxBin; b += binSize) {
-      bins.push({ label: (b >= 0 ? '+' : '') + '$' + b, count: pnls.filter(p => p >= b && p < b + binSize).length, b });
+    for (let b = minBin; b <= maxBin; b += binSize) {
+      bins.push({ label: (b>=0?'+':'')+'$'+b, count: pnls.filter(p=>p>=b&&p<b+binSize).length, b });
     }
     rebuildChart('chartHisto', {
-      type:'bar',
-      data:{ labels:bins.map(b=>b.label),
+      type: 'bar',
+      data: { labels: bins.map(b=>b.label),
         datasets:[{ label:'Trades', data:bins.map(b=>b.count),
-          backgroundColor:bins.map(b=>b.b>=0?'rgba(62,207,142,0.65)':'rgba(240,82,82,0.65)'), borderRadius:3 }]},
-      options:chartOpts({})
+          backgroundColor: bins.map(b=>b.b>=0?'rgba(62,207,142,0.65)':'rgba(240,82,82,0.65)'),
+          borderRadius: 3 }]},
+      options: chartOpts()
+    });
+  }
+
+  // ── P&L by Hour of Day ────────────────────────────
+  const hourPnl    = Array(24).fill(0);
+  const hourCounts = Array(24).fill(0);
+  withPnl.forEach(t => {
+    if (!t.entryTime) return;
+    const h = t.entryTime.getHours();
+    hourPnl[h]    += t.pnl;
+    hourCounts[h]++;
+  });
+  // Only show hours that have trades
+  const activeHours = hourPnl.map((v,i)=>({h:i,pnl:v,count:hourCounts[i]})).filter(h=>h.count>0);
+  if (activeHours.length) {
+    rebuildChart('chartHour', {
+      type: 'bar',
+      data: { labels: activeHours.map(h => {
+          const ampm = h.h >= 12 ? 'pm' : 'am';
+          const hr   = h.h % 12 || 12;
+          return hr + ampm;
+        }),
+        datasets:[{ label:'P&L', data: activeHours.map(h=>parseFloat(h.pnl.toFixed(2))),
+          backgroundColor: activeHours.map(h=>h.pnl>=0?'rgba(62,207,142,0.7)':'rgba(240,82,82,0.7)'),
+          borderRadius: 3 }]},
+      options: chartOpts()
     });
   }
 }
 
 /* ── Chart helpers ──────────────────────────────────────────────── */
-function chartOpts(extra) {
+function chartOpts(scaleOverrides) {
   return {
-    responsive:true, maintainAspectRatio:false,
-    plugins:{ legend:{display:false} },
-    scales:{
-      x:{ grid:{display:false}, ticks:{color:'#55555f',font:{size:11}}, border:{display:false} },
-      y:{ grid:{color:'rgba(255,255,255,0.05)'}, ticks:{color:'#55555f',font:{size:11}}, border:{display:false}, ...((extra.y)||{}) }
-    }, ...extra
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false }, ticks: { color: '#55555f', font: { size: 11 } }, border: { display: false } },
+      y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#55555f', font: { size: 11 } }, border: { display: false }, ...(scaleOverrides||{}) }
+    }
   };
 }
 
@@ -848,6 +932,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('filter-side').addEventListener('change', e => { filterConfig.side = e.target.value; refreshTrades(); });
   document.getElementById('filter-result').addEventListener('change', e => { filterConfig.result = e.target.value; refreshTrades(); });
   document.getElementById('filter-source').addEventListener('change', e => { filterConfig.source = e.target.value; refreshTrades(); });
+  document.getElementById('perf-period')?.addEventListener('change', refreshPerformance);
 
   // Sort headers
   document.querySelectorAll('.sortable').forEach(th =>
