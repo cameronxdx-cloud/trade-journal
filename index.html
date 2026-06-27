@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trade Journal</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" defer></script>
+</head>
+<body>
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+        <rect x="1" y="11" width="4" height="10" rx="1" fill="currentColor" opacity="0.4"/>
+        <rect x="7" y="6" width="4" height="15" rx="1" fill="currentColor" opacity="0.6"/>
+        <rect x="13" y="2" width="4" height="19" rx="1" fill="currentColor"/>
+        <path d="M2 9 L8 5 L14 7 L20 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+      </svg>
+      <span>Trade Journal</span>
+    </div>
+    <ul class="sidebar-nav">
+      <li><a href="#" class="nav-item active" data-view="dashboard">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </a></li>
+      <li><a href="#" class="nav-item" data-view="trades">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        All Trades
+      </a></li>
+      <li><a href="#" class="nav-item" data-view="performance">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Performance
+      </a></li>
+    </ul>
+    <div class="sidebar-import">
+      <button class="btn-import" id="importBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Import CSV
+      </button>
+      <input type="file" id="csvInput" accept=".csv" style="display:none" />
+      <p class="import-hint">Topstep · Lucid · Manual</p>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+
+    <!-- DASHBOARD VIEW -->
+    <section class="view active" id="view-dashboard">
+      <header class="page-header">
+        <div>
+          <h1>Dashboard</h1>
+          <p class="subtitle" id="dash-date-range">No trades loaded yet</p>
+        </div>
+        <div class="header-actions">
+          <select id="dash-period" class="filter-select">
+            <option value="all">All time</option>
+            <option value="30">Last 30 days</option>
+            <option value="7">Last 7 days</option>
+          </select>
+        </div>
+      </header>
+
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card">
+          <span class="stat-label">Total P&L</span>
+          <span class="stat-value" id="stat-pnl">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Win Rate</span>
+          <span class="stat-value" id="stat-winrate">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Total Trades</span>
+          <span class="stat-value" id="stat-total">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Avg Win</span>
+          <span class="stat-value" id="stat-avgwin">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Avg Loss</span>
+          <span class="stat-value" id="stat-avgloss">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Profit Factor</span>
+          <span class="stat-value" id="stat-pf">—</span>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h3>Cumulative P&L</h3>
+          <div class="chart-wrap" style="height:220px"><canvas id="chartEquity" role="img" aria-label="Cumulative P&L over time">No data</canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Win / Loss Breakdown</h3>
+          <div class="chart-wrap" style="height:220px"><canvas id="chartWinLoss" role="img" aria-label="Win loss donut chart">No data</canvas></div>
+        </div>
+        <div class="chart-card chart-full">
+          <h3>Daily P&L</h3>
+          <div class="chart-wrap" style="height:180px"><canvas id="chartDaily" role="img" aria-label="Daily P&L bar chart">No data</canvas></div>
+        </div>
+      </div>
+
+      <div class="empty-state" id="dash-empty">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.3"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+        <p>Import a CSV to see your stats</p>
+        <button class="btn-import-cta" id="dashImportBtn">Import trades</button>
+      </div>
+    </section>
+
+    <!-- TRADES VIEW -->
+    <section class="view" id="view-trades">
+      <header class="page-header">
+        <div>
+          <h1>All Trades</h1>
+          <p class="subtitle" id="trades-count">0 trades</p>
+        </div>
+        <div class="header-actions">
+          <input type="text" id="search" placeholder="Search symbol…" class="search-input" />
+          <select id="filter-side" class="filter-select">
+            <option value="">All sides</option>
+            <option value="long">Long</option>
+            <option value="short">Short</option>
+          </select>
+          <select id="filter-result" class="filter-select">
+            <option value="">All results</option>
+            <option value="win">Win</option>
+            <option value="loss">Loss</option>
+          </select>
+        </div>
+      </header>
+
+      <div class="table-wrap">
+        <table class="trades-table" id="tradesTable">
+          <thead>
+            <tr>
+              <th data-sort="date" class="sortable">Date <span class="sort-icon">↕</span></th>
+              <th data-sort="symbol" class="sortable">Symbol <span class="sort-icon">↕</span></th>
+              <th>Side</th>
+              <th data-sort="entry" class="sortable">Entry <span class="sort-icon">↕</span></th>
+              <th data-sort="exit" class="sortable">Exit <span class="sort-icon">↕</span></th>
+              <th data-sort="pnl" class="sortable">P&L <span class="sort-icon">↕</span></th>
+              <th>Note</th>
+              <th>Tags</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tradesBody"></tbody>
+        </table>
+        <div class="empty-state" id="trades-empty">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.3"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <p>No trades match your filters</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- PERFORMANCE VIEW -->
+    <section class="view" id="view-performance">
+      <header class="page-header">
+        <div>
+          <h1>Performance</h1>
+          <p class="subtitle">Symbol & time breakdown</p>
+        </div>
+      </header>
+
+      <div class="perf-grid">
+        <div class="chart-card">
+          <h3>P&L by Symbol</h3>
+          <div class="chart-wrap" style="height:260px"><canvas id="chartSymbol" role="img" aria-label="P&L by symbol">No data</canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Trades by Day of Week</h3>
+          <div class="chart-wrap" style="height:260px"><canvas id="chartDow" role="img" aria-label="Trades by day of week">No data</canvas></div>
+        </div>
+        <div class="chart-card chart-full">
+          <h3>P&L Histogram</h3>
+          <div class="chart-wrap" style="height:200px"><canvas id="chartHisto" role="img" aria-label="Trade P&L histogram">No data</canvas></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- TRADE DETAIL MODAL -->
+  <div class="modal-overlay" id="modalOverlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <h2 id="modal-title">Trade Detail</h2>
+        <button class="modal-close" id="modalClose" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-footer">
+        <label>Note
+          <textarea id="tradeNote" placeholder="Add a note about this trade…" rows="3"></textarea>
+        </label>
+        <label>Tags (comma separated)
+          <input type="text" id="tradeTags" placeholder="e.g. breakout, revenge trade, FOMO" />
+        </label>
+        <button class="btn-save" id="saveNote">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
