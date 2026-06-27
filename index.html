@@ -142,11 +142,12 @@
               <th data-sort="date" class="sortable">Date <span class="sort-icon">↕</span></th>
               <th data-sort="symbol" class="sortable">Symbol <span class="sort-icon">↕</span></th>
               <th>Side</th>
+              <th>Size</th>
               <th data-sort="entry" class="sortable">Entry <span class="sort-icon">↕</span></th>
               <th data-sort="exit" class="sortable">Exit <span class="sort-icon">↕</span></th>
+              <th>Duration</th>
               <th data-sort="pnl" class="sortable">P&L <span class="sort-icon">↕</span></th>
-              <th>Note</th>
-              <th>Tags</th>
+              <th>Chart</th>
               <th></th>
             </tr>
           </thead>
@@ -167,7 +168,6 @@
           <p class="subtitle">Symbol & time breakdown</p>
         </div>
       </header>
-
       <div class="perf-grid">
         <div class="chart-card">
           <h3>P&L by Symbol</h3>
@@ -193,13 +193,35 @@
         <h2 id="modal-title">Trade Detail</h2>
         <button class="modal-close" id="modalClose" aria-label="Close">✕</button>
       </div>
+
+      <!-- Trade stats + auto visual -->
       <div class="modal-body" id="modalBody"></div>
+
+      <!-- TradingView chart image section -->
+      <div class="modal-section">
+        <div class="modal-section-label">TradingView Chart</div>
+        <div class="chart-upload-area" id="chartUploadArea">
+          <div class="chart-placeholder" id="chartPlaceholder">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.4"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+            <p>Drop your TradingView screenshot here</p>
+            <span>or</span>
+            <button class="btn-upload-chart" id="uploadChartBtn">Browse image</button>
+          </div>
+          <img id="chartImagePreview" class="chart-image-preview" style="display:none" alt="TradingView chart" />
+          <div class="chart-image-actions" id="chartImageActions" style="display:none">
+            <button class="btn-remove-chart" id="removeChartBtn">Remove chart</button>
+          </div>
+        </div>
+        <input type="file" id="chartImageInput" accept="image/*" style="display:none" />
+      </div>
+
+      <!-- Notes & Tags -->
       <div class="modal-footer">
         <label>Note
-          <textarea id="tradeNote" placeholder="Add a note about this trade…" rows="3"></textarea>
+          <textarea id="tradeNote" placeholder="What was your thesis? What did you do well or poorly?" rows="3"></textarea>
         </label>
         <label>Tags (comma separated)
-          <input type="text" id="tradeTags" placeholder="e.g. breakout, revenge trade, FOMO" />
+          <input type="text" id="tradeTags" placeholder="e.g. breakout, revenge trade, FOMO, scalp" />
         </label>
         <button class="btn-save" id="saveNote">Save</button>
       </div>
